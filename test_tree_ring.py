@@ -89,7 +89,7 @@ def main(args):
             latents=init_latents_no_w,
             )
         orig_image_no_w = outputs_no_w.images[0]
-        print("Check clean image shape and type: ", orig_image_no_w.shape, type(orig_image_no_w))
+        print("Check clean image shape and type: ", type(orig_image_no_w))
         
         # generation with watermarking
         if init_latents_no_w is None:
@@ -114,7 +114,7 @@ def main(args):
             latents=init_latents_w,
             )
         orig_image_w = outputs_w.images[0]
-        print("Check watermarked image shape and type: ", orig_image_w.shape, type(orig_image_w))
+        print("Check watermarked image shape and type: ", type(orig_image_w))
 
         ### test watermark
         # distortion
