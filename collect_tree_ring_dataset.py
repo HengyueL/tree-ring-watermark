@@ -3,9 +3,9 @@ import copy
 from tqdm import tqdm
 from statistics import mean, stdev
 from sklearn import metrics
-
+import pandas as pd
 import torch
-
+import PIL
 from inverse_stable_diffusion import InversableStableDiffusionPipeline
 from diffusers import DPMSolverMultistepScheduler
 import open_clip
@@ -41,7 +41,23 @@ from io_utils import *
 
 
 def main(args):
-    table = None
+    dataset_root = os.path.join(
+        ".", "dataset", "Tree-Ring", args.dataset.split("/")[0]
+    )
+    save_clean_image_root = os.path.join(
+        dataset_root, "clean_image"
+    )
+    save_watermarked_image_root = os.path.join(
+        dataset_root, "watermarked_image"
+    )
+    save_csv_dir = os.path.join(dataset_root, "water_mark.csv")
+    res_dict = {
+        "ImageName": [],
+        "Decode_Clean": [],
+        "Decode_W": [],
+    }
+    os.makedirs(save_clean_image_root, exist_ok=True)
+    os.makedirs(save_watermarked_image_root, exist_ok=True)
     
     # load diffusion model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -69,7 +85,6 @@ def main(args):
     # ground-truth patch
     gt_patch = get_watermarking_pattern(pipe, args, device)
 
-
     for i in tqdm(range(args.start, args.end)):
         seed = i + args.gen_seed
         
@@ -90,7 +105,9 @@ def main(args):
             )
         orig_image_no_w = outputs_no_w.images[0]
         print("Check clean image shape and type: ", type(orig_image_no_w))
-        
+        save_image_path = os.path.join(save_clean_image_root, "Img-{}.png".format(i))
+        orig_image_no_w.save(save_image_path, "PNG")
+
         # generation with watermarking
         if init_latents_no_w is None:
             set_random_seed(seed)
@@ -115,6 +132,8 @@ def main(args):
             )
         orig_image_w = outputs_w.images[0]
         print("Check watermarked image shape and type: ", type(orig_image_w))
+        save_image_path = os.path.join(save_watermarked_image_root, "Img-{}.png".format(i))
+        orig_image_w.save(save_image_path, "PNG")
 
         ### test watermark
         # distortion
@@ -148,6 +167,12 @@ def main(args):
         
         print("No watermark image tree-ring metric value: ", no_w_metric)
         print("Watermarked image tree-ring metric value: ", w_metric)
+        res_dict["ImageName"].append("Img-{}".format(i))
+        res_dict["Decode_Clean"].append(no_w_metric)
+        res_dict["Decode_W"].append(w_metric)
+
+    df = pd.DataFrame(res_dict)
+    df.to_csv(save_csv_dir, index=False)
 
 
 if __name__ == '__main__':
@@ -157,7 +182,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', default='Gustavosta/Stable-Diffusion-Prompts')
     parser.add_argument('--start', default=0, type=int)
     # parser.add_argument('--end', default=1000, type=int)
-    parser.add_argument('--end', default=1, type=int)
+    parser.add_argument('--end', default=5, type=int)
     parser.add_argument('--image_length', default=512, type=int)
     parser.add_argument('--model_id', default='stabilityai/stable-diffusion-2-1-base')
     parser.add_argument('--with_tracking', action='store_true')
