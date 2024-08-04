@@ -182,7 +182,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', default='Gustavosta/Stable-Diffusion-Prompts')
     parser.add_argument('--start', default=0, type=int)
     # parser.add_argument('--end', default=1000, type=int)
-    parser.add_argument('--end', default=100, type=int)
+    parser.add_argument('--end', default=2000, type=int)
     parser.add_argument('--image_length', default=512, type=int)
     parser.add_argument('--model_id', default='stabilityai/stable-diffusion-2-1-base')
     parser.add_argument('--with_tracking', action='store_true')
