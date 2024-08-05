@@ -19,4 +19,4 @@
 cd /scratch.global/liang656/tree-ring-watermark/
 export PATH=/home/jusun/liang656/miniconda3/envs/tree-ring/bin:$PATH
 
-python collect_tree_ring_dataset.py --dataset coco
+python collect_tree_ring_dataset.py

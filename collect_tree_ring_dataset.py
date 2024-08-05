@@ -45,10 +45,10 @@ def main(args):
         ".", "dataset", "Tree-Ring", args.dataset.split("/")[0]
     )
     save_clean_image_root = os.path.join(
-        dataset_root, "clean_image"
+        dataset_root, "no_watermark_image"
     )
     save_watermarked_image_root = os.path.join(
-        dataset_root, "watermarked_image"
+        dataset_root, "encoder_image"
     )
     save_csv_dir = os.path.join(dataset_root, "water_mark.csv")
     res_dict = {
@@ -167,7 +167,7 @@ def main(args):
         
         print("No watermark image tree-ring metric value: ", no_w_metric)
         print("Watermarked image tree-ring metric value: ", w_metric)
-        res_dict["ImageName"].append("Img-{}".format(i))
+        res_dict["ImageName"].append("Img-{}.png".format(i))
         res_dict["Decode_Clean"].append(no_w_metric)
         res_dict["Decode_W"].append(w_metric)
 
