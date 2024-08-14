@@ -40,7 +40,7 @@ def main(args):
     #     args.watermarker, args.dataset, args.evade_method, args.arch
     # )
     data_root_dir = os.path.join(
-        "Result-Interm", 
+        "..", "DIP_Watermark_Evasion", "Result-Interm", 
         args.watermarker, args.dataset, args.evade_method, args.arch
     )
     file_names = [f for f in os.listdir(data_root_dir) if ".pkl" in f]  # Data are saved as dictionary in pkl format.
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     # main(args)
     
-    root_lv1 = os.path.join("Result-Interm", args.watermarker, args.dataset)
+    root_lv1 = os.path.join("..", "DIP_Watermark_Evasion", "Result-Interm", args.watermarker, args.dataset)
     corrupter_names = [f for f in os.listdir(root_lv1)]
     for corrupter in corrupter_names:
         root_lv2 = os.path.join(root_lv1, corrupter)
