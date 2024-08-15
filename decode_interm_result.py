@@ -53,117 +53,122 @@ def main(args):
     os.makedirs(save_root_dir, exist_ok=True)
     
     # === Process each file ===
-    for file_name in file_names:
-        # Retrieve the im_w name
-        im_w_file_name = file_name.replace(".pkl", ".png")
-        im_orig_name = im_w_file_name
-
-        # Readin the intermediate files
-        data_file_path = os.path.join(data_root_dir, file_name)
-        with open(data_file_path, 'rb') as handle:
-            data_dict = pickle.load(handle)
-        # Readin the im_w into bgr uint8 format
-        im_w_path = os.path.join(im_w_root_dir, im_w_file_name)
-        im_w_bgr_uint8 = cv2.imread(im_w_path)
-        
-        # Get the reconstructed data from the interm. result
-        if args.evade_method == "WevadeBQ":
-            img_recon_list = data_dict["best_recon"]
+    for img_idx, file_name in enumerate(file_names):
+        if img_idx <= args.start:
+            print("Skip [{}]-th file {}".format(img_idx, file_name))
+        elif img_idx > args.end:
+            return
         else:
-            img_recon_list = data_dict["interm_recon"]  # A list of recon. image in "bgr uint8 np" format (cv2 standard format)
-        n_recon = len(img_recon_list)
-        print("Total number of interm. recon. to process: [{}]".format(n_recon))
+            # Retrieve the im_w name
+            im_w_file_name = file_name.replace(".pkl", ".png")
+            im_orig_name = im_w_file_name
 
-        # === Initiate a encoder & decoder ===
-        watermark_gt_str = data_dict["watermark_gt_str"]
-
-        # === Init Watermarker (Tree-Ring) ===
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        scheduler = DPMSolverMultistepScheduler.from_pretrained(args.model_id, subfolder='scheduler')
-        pipe = InversableStableDiffusionPipeline.from_pretrained(
-            args.model_id,
-            scheduler=scheduler,
-            torch_dtype=torch.float16,
-            revision='fp16',
-            )
-        pipe = pipe.to(device)
-        tester_prompt = '' # assume at the detection time, the original prompt is unknown
-        text_embeddings = pipe.get_text_embedding(tester_prompt)
-        # ground-truth patch
-        gt_patch = get_watermarking_pattern(pipe, args, device)
-        init_latents_w = pipe.get_random_latents()
-        watermarking_mask = get_watermarking_mask(init_latents_w, args, device)
-
-        # Process each inter. recon
-        watermark_decoded_log = []  # A list to save decoded watermark
-        index_log = data_dict["index"]
-        psnr_orig_log = []
-        mse_orig_log = []
-        psnr_w_log = []
-        mse_w_log = []
-        ssim_orig_log = []
-        ssim_w_log = []
-        for img_idx in range(n_recon):
-            img_bgr_uint8 = img_recon_list[img_idx]    # shape [512, 512, 3]
-            if args.watermarker == "StegaStamp" and args.arch in ["cheng2020-anchor", "mbt2018"]:
-                img_bgr_uint8 = cv2.resize(img_bgr_uint8, (400, 400), interpolation=cv2.INTER_LINEAR)
-
-            # =================== YOUR CODE HERE =========================== #
+            # Readin the intermediate files
+            data_file_path = os.path.join(data_root_dir, file_name)
+            with open(data_file_path, 'rb') as handle:
+                data_dict = pickle.load(handle)
+            # Readin the im_w into bgr uint8 format
+            im_w_path = os.path.join(im_w_root_dir, im_w_file_name)
+            im_w_bgr_uint8 = cv2.imread(im_w_path)
             
-            # Step 0: if you need to change the input format
-            img_rgb_uint8 = cv2.cvtColor(img_bgr_uint8, cv2.COLOR_BGR2RGB)
-            img_input = Image.fromarray(img_rgb_uint8)
-            img_input = transform_img(img_input).unsqueeze(0).to(text_embeddings.dtype).to(device)
-            image_latents_w = pipe.get_image_latents(img_input, sample=False)
+            # Get the reconstructed data from the interm. result
+            if args.evade_method == "WevadeBQ":
+                img_recon_list = data_dict["best_recon"]
+            else:
+                img_recon_list = data_dict["interm_recon"]  # A list of recon. image in "bgr uint8 np" format (cv2 standard format)
+            n_recon = len(img_recon_list)
+            print("Total number of interm. recon. to process: [{}]".format(n_recon))
 
-            # Step 1: Decode the interm. result
-            img_input_no_w = Image.fromarray(img_rgb_uint8)
-            img_no_w_input = transform_img(img_input_no_w).unsqueeze(0).to(text_embeddings.dtype).to(device)
-            image_latents_no_w = pipe.get_image_latents(img_no_w_input, sample=False)
-            reversed_latents_w = pipe.forward_diffusion(
-                latents=image_latents_w,
-                text_embeddings=text_embeddings,
-                guidance_scale=1,
-                num_inference_steps=args.test_num_inference_steps,
-            )
+            # === Initiate a encoder & decoder ===
+            watermark_gt_str = data_dict["watermark_gt_str"]
 
-            # Step 2: log the result
-            reversed_latents_w_fft = torch.fft.fftshift(torch.fft.fft2(reversed_latents_w), dim=(-1, -2))
-            target_patch = gt_patch
-            w_metric = torch.abs(
-                reversed_latents_w_fft[watermarking_mask] - target_patch[watermarking_mask]
-            ).mean().item()
-            watermark_decoded_log.append(w_metric)
+            # === Init Watermarker (Tree-Ring) ===
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            scheduler = DPMSolverMultistepScheduler.from_pretrained(args.model_id, subfolder='scheduler')
+            pipe = InversableStableDiffusionPipeline.from_pretrained(
+                args.model_id,
+                scheduler=scheduler,
+                torch_dtype=torch.float16,
+                revision='fp16',
+                )
+            pipe = pipe.to(device)
+            tester_prompt = '' # assume at the detection time, the original prompt is unknown
+            text_embeddings = pipe.get_text_embedding(tester_prompt)
+            # ground-truth patch
+            gt_patch = get_watermarking_pattern(pipe, args, device)
+            init_latents_w = pipe.get_random_latents()
+            watermarking_mask = get_watermarking_mask(init_latents_w, args, device)
 
-            # ============================================================= #
+            # Process each inter. recon
+            watermark_decoded_log = []  # A list to save decoded watermark
+            index_log = data_dict["index"]
+            psnr_orig_log = []
+            mse_orig_log = []
+            psnr_w_log = []
+            mse_w_log = []
+            ssim_orig_log = []
+            ssim_w_log = []
+            for img_idx in range(n_recon):
+                img_bgr_uint8 = img_recon_list[img_idx]    # shape [512, 512, 3]
+                if args.watermarker == "StegaStamp" and args.arch in ["cheng2020-anchor", "mbt2018"]:
+                    img_bgr_uint8 = cv2.resize(img_bgr_uint8, (400, 400), interpolation=cv2.INTER_LINEAR)
 
-            # Calculate the quality: mse and psnr
-            mse_recon_w = calc_mse(im_w_bgr_uint8, img_bgr_uint8)
-            psnr_recon_w = compute_psnr(
-                im_w_bgr_uint8.astype(np.int16), img_bgr_uint8.astype(np.int16), data_range=255
-            )
-            ssim_recon_w = compute_ssim(
-                im_w_bgr_uint8.astype(np.int16), img_bgr_uint8.astype(np.int16), data_range=255
-            )
+                # =================== YOUR CODE HERE =========================== #
+                
+                # Step 0: if you need to change the input format
+                img_rgb_uint8 = cv2.cvtColor(img_bgr_uint8, cv2.COLOR_BGR2RGB)
+                img_input = Image.fromarray(img_rgb_uint8)
+                img_input = transform_img(img_input).unsqueeze(0).to(text_embeddings.dtype).to(device)
+                image_latents_w = pipe.get_image_latents(img_input, sample=False)
 
-            
-            mse_w_log.append(mse_recon_w)
-            psnr_w_log.append(psnr_recon_w)
-            ssim_w_log.append(ssim_recon_w)
+                # Step 1: Decode the interm. result
+                img_input_no_w = Image.fromarray(img_rgb_uint8)
+                img_no_w_input = transform_img(img_input_no_w).unsqueeze(0).to(text_embeddings.dtype).to(device)
+                image_latents_no_w = pipe.get_image_latents(img_no_w_input, sample=False)
+                reversed_latents_w = pipe.forward_diffusion(
+                    latents=image_latents_w,
+                    text_embeddings=text_embeddings,
+                    guidance_scale=1,
+                    num_inference_steps=args.test_num_inference_steps,
+                )
 
-        # Save the result
-        processed_dict = {
-            "index": index_log,
-            "watermark_gt_str": watermark_gt_str, # Some historical none distructive bug :( will cause this reformatting
-            "watermark_decoded": watermark_decoded_log,
-            "psnr_w": psnr_w_log,
-            "ssim_w": ssim_w_log
-        }
+                # Step 2: log the result
+                reversed_latents_w_fft = torch.fft.fftshift(torch.fft.fft2(reversed_latents_w), dim=(-1, -2))
+                target_patch = gt_patch
+                w_metric = torch.abs(
+                    reversed_latents_w_fft[watermarking_mask] - target_patch[watermarking_mask]
+                ).mean().item()
+                watermark_decoded_log.append(w_metric)
 
-        save_name = os.path.join(save_root_dir, file_name)
-        with open(save_name, 'wb') as handle:
-            pickle.dump(processed_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        print("Decoded Interm. result saved to {}".format(save_name))
+                # ============================================================= #
+
+                # Calculate the quality: mse and psnr
+                mse_recon_w = calc_mse(im_w_bgr_uint8, img_bgr_uint8)
+                psnr_recon_w = compute_psnr(
+                    im_w_bgr_uint8.astype(np.int16), img_bgr_uint8.astype(np.int16), data_range=255
+                )
+                ssim_recon_w = compute_ssim(
+                    im_w_bgr_uint8.astype(np.int16), img_bgr_uint8.astype(np.int16), data_range=255
+                )
+
+                
+                mse_w_log.append(mse_recon_w)
+                psnr_w_log.append(psnr_recon_w)
+                ssim_w_log.append(ssim_recon_w)
+
+            # Save the result
+            processed_dict = {
+                "index": index_log,
+                "watermark_gt_str": watermark_gt_str, # Some historical none distructive bug :( will cause this reformatting
+                "watermark_decoded": watermark_decoded_log,
+                "psnr_w": psnr_w_log,
+                "ssim_w": ssim_w_log
+            }
+
+            save_name = os.path.join(save_root_dir, file_name)
+            with open(save_name, 'wb') as handle:
+                pickle.dump(processed_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print("Decoded Interm. result saved to {}".format(save_name))
 
 
 if __name__ == "__main__":
@@ -233,6 +238,14 @@ if __name__ == "__main__":
                 diffuser --- Do not need.
         """,
         default="cheng2020-anchor"
+    )
+    parser.add_argument(
+        "--start", dest="start", type=int, help="Specification of evasion method.",
+        default=0
+    )
+    parser.add_argument(
+        "--end", dest="end", type=int, help="Specification of evasion method.",
+        default=2001
     )
     args = parser.parse_args()
     main(args)
