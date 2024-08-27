@@ -49,7 +49,9 @@ def main(args):
     im_w_root_dir = os.path.join("dataset", args.watermarker, args.dataset, "encoder_img")
 
     # === Save the result in a different location in case something went wrong ===
-    save_root_dir = os.path.join("Result-Decoded", args.watermarker, args.dataset, args.evade_method, args.arch)
+    save_root_dir = os.path.join(
+        "..", "DIP_Watermark_Evasion",
+        "Result-Decoded", args.watermarker, args.dataset, args.evade_method, args.arch)
     os.makedirs(save_root_dir, exist_ok=True)
     
     # === Process each file ===
@@ -176,9 +178,9 @@ if __name__ == "__main__":
     # ======
     parser.add_argument('--run_name', default='test')
     # parser.add_argument('--dataset', default='Gustavosta/Stable-Diffusion-Prompts')
-    parser.add_argument('--start', default=0, type=int)
+    # parser.add_argument('--start', default=0, type=int)
     # parser.add_argument('--end', default=1000, type=int)
-    parser.add_argument('--end', default=2000, type=int)
+    # parser.add_argument('--end', default=2000, type=int)
     parser.add_argument('--image_length', default=512, type=int)
     parser.add_argument('--model_id', default='stabilityai/stable-diffusion-2-1-base')
     parser.add_argument('--with_tracking', action='store_true')
